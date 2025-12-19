@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nova Admin Dashboard</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
+        <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Cairo", "sans-serif"] },
+            colors: {
+              dark: {
+                900: "#0f172a", // الخلفية الأساسية
+                800: "#1e293b", // خلفية الكروت والسايدبار
+                700: "#334155", // الحدود والفواصل
+              },
+              brand: { 500: "#3b82f6", 600: "#2563eb" }, // أزرق نيون
+              status: {
+                pending: '#f97316', // برتقالي
+                processing: '#3b82f6', // أزرق
+                shipped: '#10b981', // أخضر
+                delivered: '#16a34a', // أخضر غامق
+                cancelled: '#ef4444', // أحمر
+              }
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      body {
+        background-color: #0f172a;
+        color: #f1f5f9;
+        font-family: "Cairo", sans-serif;
+      }
+
+      /* Tailwind apply aliases */
+      .sidebar-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1rem;
+        color: #9ca3af;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 0.875rem;
+        font-weight: 700;
+        border-radius: 0.75rem;
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+        margin-bottom: 0.25rem;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid transparent;
+      }
+      .sidebar-link:hover {
+        background-color: #1e293b;
+        color: white;
+        transform: translateX(-4px);
+        border-color: #334155;
+      }
+      .sidebar-link.active {
+        background-color: #2563eb;
+        color: white;
+        box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3),
+          0 4px 6px -4px rgba(59, 130, 246, 0.3);
+        border-color: #3b82f6;
+      }
+
+      .submenu {
+        margin-right: 1.5rem;
+        margin-top: 0.25rem;
+        padding-right: 0.75rem;
+        border-right: 2px solid #334155;
+        overflow: hidden;
+        transition: all 0.5s;
+        max-height: 0;
+        opacity: 0;
+      }
+      .submenu.open {
+        max-height: 24rem;
+        opacity: 1;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+      }
+      .submenu-link {
+        display: block;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        color: #9ca3af;
+        border-radius: 0.5rem;
+        transition: all;
+        cursor: pointer;
+      }
+      .submenu-link:hover {
+        color: white;
+        background-color: #1e293b;
+      }
+      .submenu-link.active {
+        color: #3b82f6;
+        font-weight: 700;
+        background-color: #1e293b;
+      }
+
+      .card {
+        background-color: #1e293b;
+        padding: 1.5rem;
+        border-radius: 1rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -4px rgba(0, 0, 0, 0.1);
+        border: 1px solid #334155;
+        transition: all 0.3s;
+      }
+      .input-std {
+        width: 100%;
+        background-color: #0f172a;
+        border: 1px solid #334155;
+        color: white;
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        outline: none;
+        transition: all;
+        box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+      }
+      .input-std:focus {
+        ring: 2px;
+        ring-color: #3b82f6;
+        border-color: #3b82f6;
+      }
+      .btn-primary {
+        background-color: #2563eb;
+        color: white;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+        padding-top: 0.625rem;
+        padding-bottom: 0.625rem;
+        border-radius: 0.75rem;
+        font-weight: 700;
+        box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+        transition: all;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+      .btn-primary:hover {
+        background-color: #3b82f6;
+        transform: translateY(-2px);
+      }
+      .btn-primary:active {
+        transform: scale(0.95);
+      }
+      .badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+      }
+      .badge-pending { background-color: #f9731633; color: #f97316; }
+      .badge-processing { background-color: #3b82f633; color: #3b82f6; }
+      .badge-shipped { background-color: #10b98133; color: #10b981; }
+      .badge-delivered { background-color: #16a34a33; color: #16a34a; }
+      .badge-cancelled { background-color: #ef444433; color: #ef4444; }
+
+
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0f172a;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 10px;
+      }
+
+      .fade-enter-active,
+      .fade-leave-active {
+        transition: opacity 0.3s ease;
+      }
+      .fade-enter-from,
+      .fade-leave-to {
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body class="antialiased">
+    <div id="app" class="flex h-screen overflow-hidden">
+            <div
+        v-if="!currentUser"
+        class="absolute inset-0 z-50 min-h-screen flex items-center justify-center bg-dark-900 overflow-hidden">
+        <div
+          class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-brand-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+        <div
+          class="absolute bottom-[-20%] right-[-10%] w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+
+        <div
+          class="card w-full max-w-md z-10 relative border border-dark-700/50 backdrop-blur-sm bg-dark-800/90">
+          <div class="text-center mb-8">
+            <div
+              class="w-16 h-16 bg-brand-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl mx-auto shadow-lg shadow-brand-500/40 mb-4">
+              N
+            </div>
+            <h2 class="text-2xl font-bold text-white">مرحباً بك يا مدير 👋</h2>
+            <p class="text-gray-400 text-sm mt-2">
+              سجل دخولك للوصول إلى لوحة القيادة
+            </p>
+          </div>
+
+          <form @submit.prevent="login" class="space-y-5">
+            <div>
+              <label
+                class="block text-xs font-bold text-gray-400 mb-2 uppercase"
+                >البريد الإلكتروني</label
+              >
+              <input
+                v-model="authForm.email"
+                type="email"
+                class="input-std"
+                placeholder="admin@nova.com"
+                required />
+            </div>
+            <div>
+              <label
+                class="block text-xs font-bold text-gray-400 mb-2 uppercase"
+                >كلمة المرور</label
+              >
+              <input
+                v-model="authForm.password"
+                type="password"
+                class="input-std"
+                placeholder="••••••••"
+                required />
+            </div>
+
+            <div
+              v-if="errorMsg"
+              class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs font-bold text-center">
+              <i class="fa-solid fa-triangle-exclamation ml-1"></i> {{ errorMsg
+              }}
+            </div>
+
+            <button type="submit" class="btn-primary w-full py-3 text-lg" :disabled="loading">
+              <span v-if="!loading">دخول آمن</span>
+              <span v-else
+                ><i class="fa-solid fa-circle-notch fa-spin"></i
+              ></span>
+            </button>
+          </form>
+          <p class="text-center text-xs text-gray-600 mt-6">
+            Nova Admin System v3.1
+          </p>
+        </div>
+      </div>
+
+            <aside
+        v-if="currentUser && activeVendorId"
+        class="w-72 bg-dark-900 border-l border-dark-700 flex-shrink-0 hidden md:flex flex-col z-30 shadow-xl relative">
+                <div class="h-20 flex items-center px-6 border-b border-dark-700">
+          <div
+            class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white font-black text-lg ml-3 shadow-lg shadow-brand-500/40">
+            N
+          </div>
+          <div>
+            <h1 class="text-xl font-black tracking-tight text-white">
+              {{ settings.logoName || 'متجر Nova' }}
+            </h1>
+            <span
+              class="text-[10px] font-bold text-gray-500 tracking-widest uppercase"
+              >لوحة التحكم</span
+            >
+          </div>
+        </div>
+
+        <nav
+          class="flex-1 overflow-y-auto py-6 space-y-1 px-2 custom-scrollbar">
+          <div v-if="currentUserVendors.length > 1" class="px-4 mb-4">
+            <label class="block text-xs font-bold text-gray-400 mb-2 uppercase"
+              >إدارة المتجر</label
+            >
+            <select
+              @change="setActiveVendor($event.target.value)"
+              class="input-std !bg-dark-700">
+              <option
+                v-for="id in currentUserVendors"
+                :key="id"
+                :value="id"
+                :selected="id === activeVendorId">
+                {{ allVendors[id]?.store_info?.logoName || `متجر رقم:
+                ${id.slice(0, 8)}` }}
+              </option>
+            </select>
+            <p class="text-xs mt-2 text-gray-500">
+              جاري تعديل المتجر:
+              <span class="text-brand-500 font-bold"
+                >{{ settings.logoName }}</span
+              >
+            </p>
+          </div>
+          <div
+            class="px-4 mb-2 text-xs font-black text-gray-500 uppercase tracking-wider">
+            الرئيسية
+          </div>
+          <div
+            @click="navigateTo('dashboard')"
+            :class="['sidebar-link', currentView === 'dashboard' ? 'active' : '']">
+            <div class="flex items-center">
+              <i class="fa-solid fa-chart-pie ml-3"></i> لوحة القيادة
+            </div>
+          </div>
+
+          <div>
+            <div
+              @click="toggleMenu('orders')"
+              :class="['sidebar-link', isMenuOpen('orders') ? 'bg-dark-800 text-white' : '']">
+              <div class="flex items-center">
+                <i class="fa-solid fa-bag-shopping ml-3"></i> الطلبات
+              </div>
+              <i
+                :class="['fa-solid fa-chevron-down text-[10px] transition-transform duration-300 opacity-50', menus.orders ? 'rotate-180' : '']"></i>
+            </div>
+            <div :class="['submenu', menus.orders ? 'open' : '']">
+              <a
+                @click="navigateTo('orders_manage')"
+                :class="['submenu-link', currentView === 'orders_manage' ? 'active' : '']"
+                >إدارة الطلبات</a
+              >
+              <a href="#" class="submenu-link">طلبات مهملة</a>
+            </div>
+          </div>
+
+          <div>
+            <div
+              @click="toggleMenu('products')"
+              :class="['sidebar-link', isMenuOpen('products') ? 'bg-dark-800 text-white' : '']">
+              <div class="flex items-center">
+                <i class="fa-solid fa-box-open ml-3"></i> المنتجات
+              </div>
+              <i
+                :class="['fa-solid fa-chevron-down text-[10px] transition-transform duration-300 opacity-50', menus.products ? 'rotate-180' : '']"></i>
+            </div>
+            <div :class="['submenu', menus.products ? 'open' : '']">
+              <a
+                @click="navigateTo('products_manage')"
+                :class="['submenu-link', currentView === 'products_manage' ? 'active' : '']"
+                >جميع المنتجات</a
+              >
+              <a href="#" class="submenu-link">المجموعات</a>
+            </div>
+          </div>
+
+          <div
+            class="px-4 mt-6 mb-2 text-xs font-black text-gray-500 uppercase tracking-wider">
+            الإعدادات
+          </div>
+
+          <div>
+            <div
+              @click="toggleMenu('store')"
+              :class="['sidebar-link', isMenuOpen('store') ? 'bg-dark-800 text-white' : '']">
+              <div class="flex items-center">
+                <i class="fa-solid fa-store ml-3"></i> المتجر الإلكتروني
+              </div>
+              <i
+                :class="['fa-solid fa-chevron-down text-[10px] transition-transform duration-300 opacity-50', menus.store ? 'rotate-180' : '']"></i>
+            </div>
+            <div :class="['submenu', menus.store ? 'open' : '']">
+              <a
+                @click="navigateTo('store_settings')"
+                :class="['submenu-link', currentView === 'store_settings' ? 'active' : '']"
+                >إعدادات القالب</a
+              >
+              <a
+                @click="navigateTo('store_policies')"
+                :class="['submenu-link', currentView === 'store_policies' ? 'active' : '']"
+                >السياسات</a
+              >
+              <a
+                :href="'storefront.html?vendorId=' + activeVendorId"
+                target="_blank"
+                v-if="activeVendorId"
+                class="submenu-link text-green-400 font-bold mt-2">
+                <i class="fa-solid fa-external-link-alt ml-1"></i> معاينة المتجر
+              </a>
+            </div>
+            
+          </div>
+
+          <div class="mt-8 pt-8 border-t border-dark-700">
+            <div
+              @click="logout"
+              class="sidebar-link hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20">
+              <div class="flex items-center">
+                <i class="fa-solid fa-right-from-bracket ml-3"></i> تسجيل خروج
+              </div>
+            </div>
+          </div>
+        </nav>
+      </aside>
+
+            <main
+        v-if="currentUser && activeVendorId"
+        class="flex-1 flex flex-col h-screen overflow-hidden bg-dark-900">
+        <header
+          class="bg-dark-800 h-20 border-b border-dark-700 flex items-center justify-between px-8 shadow-sm sticky top-0 z-20">
+          <div class="flex items-center gap-4">
+            <h2 class="text-xl font-bold text-white">{{ viewTitle }}</h2>
+          </div>
+
+          <div class="flex items-center space-x-4 space-x-reverse">
+            <div class="text-left hidden sm:block">
+              <p class="text-sm font-bold text-white">
+                {{ currentUser.email }}
+              </p>
+              <span
+                class="text-green-500 text-[10px] font-bold flex items-center justify-end gap-1"
+                ><span
+                  class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                متصل الآن</span
+              >
+            </div>
+            <div
+              class="w-10 h-10 bg-brand-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-brand-500/30">
+              {{ currentUser.email[0].toUpperCase() }}
+            </div>
+          </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8 scroll-smooth">
+                    <div
+            v-if="currentView === 'dashboard'"
+            class="animate-fade space-y-6">
+            <h1 class="text-2xl font-bold mb-6">ملخص متجرك</h1>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div class="card relative overflow-hidden group">
+                <div
+                  class="absolute left-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition">
+                  <i class="fa-solid fa-sack-dollar text-6xl text-white"></i>
+                </div>
+                <div class="flex justify-between items-start mb-4">
+                  <div>
+                    <p
+                      class="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      إجمالي المبيعات
+                    </p>
+                    <h3 class="text-3xl font-black text-white mt-2">
+                      {{ totalRevenue }}
+                      <span class="text-sm text-gray-500 font-normal">EGP</span>
+                    </h3>
+                  </div>
+                </div>
+                <div class="w-full bg-dark-900 rounded-full h-1.5 mt-2">
+                  <div
+                    class="bg-brand-500 h-1.5 rounded-full"
+                    style="width: 70%"></div>
+                </div>
+              </div>
+
+              <div class="card relative overflow-hidden group">
+                <div class="flex justify-between items-start mb-4">
+                  <div>
+                    <p
+                      class="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      الطلبات
+                    </p>
+                    <h3 class="text-3xl font-black text-white mt-2">
+                      {{ Object.keys(orders).length }}
+                    </h3>
+                  </div>
+                  <span
+                    class="bg-dark-900 text-brand-500 text-xs px-2 py-1 rounded border border-dark-700"
+                    >جديد: {{ pendingCount }}</span
+                  >
+                </div>
+                <div class="w-full bg-dark-900 rounded-full h-1.5 mt-2">
+                  <div
+                    class="bg-purple-500 h-1.5 rounded-full"
+                    style="width: 45%"></div>
+                </div>
+              </div>
+
+              <div class="card relative overflow-hidden group">
+                <div class="flex justify-between items-start mb-4">
+                  <div>
+                    <p
+                      class="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      عدد المنتجات
+                    </p>
+                    <h3 class="text-3xl font-black text-white mt-2">
+                      {{ Object.keys(products).length }}
+                    </h3>
+                  </div>
+                </div>
+                <div class="w-full bg-dark-900 rounded-full h-1.5 mt-2">
+                  <div
+                    class="bg-green-500 h-1.5 rounded-full"
+                    style="width: 80%"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="flex justify-between items-center mb-6">
+                <div>
+                  <h3 class="font-bold text-lg text-white">مخطط المبيعات</h3>
+                  <p class="text-sm text-gray-500">
+                    المبيعات خلال الـ 7 أيام الأخيرة
+                  </p>
+                </div>
+                <span
+                  class="text-xs text-brand-500 bg-brand-500/10 px-3 py-1 rounded-full"
+                  >تحديث تلقائي</span
+                >
+              </div>
+              <div class="h-64 w-full">
+                <canvas id="salesChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+                    <div v-if="currentView === 'products_manage'" class="animate-fade">
+            <div class="flex justify-between mb-6">
+              <h2 class="text-2xl font-bold text-white">إدارة المنتجات</h2>
+              <button
+                @click="showAddProductModal = true; editingProduct = null; newProduct = {}"
+                class="btn-primary">
+                <i class="fa-solid fa-plus"></i> إضافة منتج
+              </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div
+                v-for="(prod, key) in products"
+                :key="key"
+                class="card !p-0 group relative overflow-hidden">
+                <div class="h-48 bg-white p-4 flex items-center justify-center">
+                  <img :src="prod.image || 'https://via.placeholder.com/300x200?text=No+Image'" class="max-h-full object-contain" />
+                </div>
+                <div class="p-4 bg-dark-800">
+                  <h3 class="font-bold text-white truncate">{{ prod.name || 'منتج غير مسمى' }}</h3>
+                  <div class="flex justify-between mt-2">
+                    <span class="font-black text-brand-500"
+                      >{{ prod.price || 0 }} EGP</span
+                    >
+                    <div class="space-x-3 space-x-reverse">
+                      <button
+                        @click="editProduct(key, prod)"
+                        class="text-brand-500 hover:text-brand-400">
+                        <i class="fa-solid fa-edit"></i> تعديل
+                      </button>
+                      <button
+                        @click="deleteProduct(key)"
+                        class="text-red-500 hover:text-red-400">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+                    <div v-if="currentView === 'orders_manage'" class="animate-fade">
+            <div class="flex justify-between mb-6">
+              <h2 class="text-2xl font-bold text-white">إدارة الطلبات</h2>
+            </div>
+            
+            <div class="card overflow-x-auto !p-0">
+              <table class="min-w-full divide-y divide-dark-700">
+                <thead class="bg-dark-900">
+                  <tr>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">رقم الطلب</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">الإجمالي</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">الحالة</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">تاريخ الطلب</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">الإجراء</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-dark-700">
+                  <tr v-for="(order, key) in sortedOrders" :key="key" class="hover:bg-dark-700/50 transition">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-white">{{ key.slice(0, 8) }}...</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-brand-500 font-bold">{{ order.total || 0 }} EGP</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                      <span :class="['badge', 'badge-' + order.status]">{{ statusMap[order.status] || order.status }}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                      {{ formatDate(order.date) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2 space-x-reverse">
+                      <button @click="updateOrderStatus(key, 'processing')" class="text-brand-500 hover:text-brand-400 text-xs font-bold">تجهيز</button>
+                      <button @click="updateOrderStatus(key, 'shipped')" class="text-green-500 hover:text-green-400 text-xs font-bold">شحن</button>
+                      <button @click="updateOrderStatus(key, 'delivered')" class="text-red-500 hover:text-red-400 text-xs font-bold">تسليم</button>
+                  </td>
+                </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+                    <div v-if="currentView === 'store_settings'" class="animate-fade">
+            <div class="max-w-4xl mx-auto card">
+              <h2
+                class="text-xl font-bold mb-6 pb-4 border-b border-dark-700 text-white">
+                إعدادات المتجر الأساسية
+              </h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label class="block text-xs font-bold text-gray-400 mb-2"
+                    >اسم المتجر (اللوجو)</label
+                  ><input v-model="settings.logoName" class="input-std" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-400 mb-2"
+                    >الشريط العلوي</label
+                  ><input v-model="settings.topBarText" class="input-std" />
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-xs font-bold text-gray-400 mb-2"
+                    >رابط صورة البانر</label
+                  ><input
+                    v-model="settings.heroImage"
+                    class="input-std text-left ltr" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-400 mb-2"
+                    >العنوان 1</label
+                  ><input v-model="settings.heroTitle1" class="input-std" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-gray-400 mb-2"
+                    >العنوان 2</label
+                  ><input v-model="settings.heroTitle2" class="input-std" />
+                </div>
+              </div>
+              <div class="flex justify-end">
+                <button @click="saveSettings" class="btn-primary px-10">
+                  حفظ التعديلات
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+            <div
+        v-if="showAddProductModal"
+        class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div
+          class="bg-dark-800 border border-dark-700 w-full max-w-xl rounded-2xl shadow-2xl p-8 relative text-white">
+          <button
+            @click="showAddProductModal = false; editingProduct = null; newProduct = {}"
+            class="absolute top-4 left-4 text-gray-400 hover:text-white">
+            <i class="fa-solid fa-times text-xl"></i>
+          </button>
+
+          <h3 class="text-2xl font-bold mb-6">
+            {{ editingProduct ? 'تعديل المنتج: ' + editingProduct.name : 'إضافة
+            منتج جديد' }}
+          </h3>
+
+          <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="col-span-2">
+              <input
+                :value="editingProduct ? editingProduct.name : newProduct.name"
+                @input="editingProduct ? editingProduct.name = $event.target.value : newProduct.name = $event.target.value"
+                class="input-std"
+                placeholder="اسم المنتج" />
+            </div>
+
+            <div>
+              <input
+                :value="editingProduct ? editingProduct.price : newProduct.price"
+                @input="editingProduct ? editingProduct.price = $event.target.value : newProduct.price = $event.target.value"
+                type="number"
+                class="input-std"
+                placeholder="السعر" />
+            </div>
+
+            <div>
+              <input
+                :value="editingProduct ? editingProduct.oldPrice : newProduct.oldPrice"
+                @input="editingProduct ? editingProduct.oldPrice = $event.target.value : newProduct.oldPrice = $event.target.value"
+                type="number"
+                class="input-std"
+                placeholder="السعر القديم (اختياري)" />
+            </div>
+
+            <div class="col-span-2">
+              <input
+                :value="editingProduct ? editingProduct.image : newProduct.image"
+                @input="editingProduct ? editingProduct.image = $event.target.value : newProduct.image = $event.target.value"
+                class="input-std"
+                placeholder="رابط الصورة (URL)" />
+            </div>
+          </div>
+
+          <button @click="addProduct" class="btn-primary w-full">
+            {{ editingProduct ? 'حفظ التعديلات' : 'إضافة المنتج' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ⚠️ Firebase Config ⚠️ - يجب استبدال هذه القيم بقيم مشروعك الفعلية
+      const firebaseConfig = {
+        apiKey: "AIzaSyAUxHWPtXVUOsmvMWxSN4wyCmGTpSzVFik",
+        authDomain: "nova-b91d4.firebaseapp.com",
+        databaseURL: "https://nova-b91d4-default-rtdb.firebaseio.com",
+        projectId: "nova-b91d4",
+        storageBucket: "nova-b91d4.firebasestorage.app",
+        messagingSenderId: "993960824562",
+        appId: "1:993960824562:web:a23cc53cab7adbe2c44a6b",
+        measurementId: "G-BFQXQ3442Z",
+      };
+
+      if (typeof firebase !== "undefined" && typeof Vue !== "undefined") {
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+        const functions = firebase.functions(); // تهيئة Cloud Functions
+
+        const { createApp, ref, onMounted, computed, watch } = Vue;
+
+        createApp({
+          setup() {
+            const currentUser = ref(null);
+            const loading = ref(true);
+            const authForm = ref({ email: "", password: "" });
+            const errorMsg = ref("");
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const initialVendorId = urlParams.get("vendorId");
+
+            const currentUserRole = ref(null);
+            const allVendors = ref({});
+            const activeVendorId = ref(null);
+            const currentUserVendors = ref([]);
+
+            const currentView = ref("dashboard");
+            const menus = ref({ orders: true, products: true, store: true }); // فتح القوائم الافتراضي
+            const showAddProductModal = ref(false);
+
+            const settings = ref({});
+            const products = ref({});
+            const orders = ref({});
+            const newProduct = ref({});
+            const editingProduct = ref(null);
+            
+            // خريطة حالات الأوردرات للغة العربية (للعرض)
+            const statusMap = {
+                'pending': 'جديد',
+                'processing': 'قيد التجهيز',
+                'shipped': 'تم الشحن',
+                'delivered': 'تم التسليم',
+                'cancelled': 'ملغي'
+            };
+
+
+            const isPlatformAdmin = computed(
+              () => currentUserRole.value === "platform_admin"
+            );
+            const dbPath = computed(() =>
+              activeVendorId.value ? `vendors/${activeVendorId.value}` : null
+            );
+            const viewTitle = computed(() => {
+              switch (currentView.value) {
+                case "dashboard":
+                  return "لوحة القيادة";
+                case "products_manage":
+                  return "إدارة المنتجات";
+                case "orders_manage":
+                  return "سجل الطلبات";
+                case "store_settings":
+                  return "إعدادات المتجر";
+                default:
+                  return "Nova Admin";
+              }
+            });
+            
+            const sortedOrders = computed(() => {
+              // تحويل الأوبجكت إلى مصفوفة لفرزها
+              return Object.entries(orders.value)
+                .map(([key, order]) => ({ key, ...order }))
+                .sort((a, b) => (b.date || 0) - (a.date || 0)); // الفرز تنازليًا حسب التاريخ (الأحدث أولاً)
+            });
+
+            const totalRevenue = computed(() =>
+              Object.values(orders.value)
+                .filter(order => order.status !== 'cancelled') // حساب الإيرادات من الطلبات غير الملغاة
+                .reduce((sum, order) => sum + (order.total || 0), 0)
+                .toFixed(2)
+            );
+            const pendingCount = computed(
+              () =>
+                Object.values(orders.value).filter(
+                  (order) => order.status === "pending"
+                ).length
+            );
+
+            const formatDate = (timestamp) => {
+              if (!timestamp) return '---';
+              // Realtime Database يستخدم timestamp بالملي ثانية
+              return new Date(timestamp).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
+            }
+
+            const fetchPlatformData = () => {
+              db.ref("vendors")
+                .once("value")
+                .then((snapshot) => {
+                  if (snapshot.exists()) {
+                    allVendors.value = snapshot.val();
+                  }
+                });
+            };
+
+            const setActiveVendor = (vendorId) => {
+              activeVendorId.value = vendorId;
+              navigateTo("dashboard");
+            };
+
+            // مراقبة التغييرات في مسار قاعدة البيانات للمتجر النشط
+            watch(
+              dbPath,
+              (newPath) => {
+                if (newPath) {
+                  // إيقاف المراقبة القديمة
+                  db.ref(`${newPath}/store_info`).off();
+                  db.ref(`${newPath}/products`).off();
+                  db.ref(`${newPath}/orders`).off();
+
+                  // بدء المراقبة الجديدة
+                  db.ref(`${newPath}/store_info`).on("value", (s) => {
+                    if (s.exists()) settings.value = s.val();
+                  });
+                  db.ref(`${newPath}/products`).on("value", (s) => {
+                    if (s.exists()) products.value = s.val();
+                    else products.value = {};
+                  });
+                  db.ref(`${newPath}/orders`).on("value", (s) => {
+                    if (s.exists()) {
+                      orders.value = s.val();
+                    } else orders.value = {};
+                  });
+                } else {
+                  // مسح البيانات عند عدم وجود متجر نشط
+                  settings.value = {};
+                  products.value = {};
+                  orders.value = {};
+                }
+              },
+              { immediate: false }
+            );
+
+            const determineUserRole = async (user) => {
+              const emailKey = user.email.replace(/\./g, ",");
+
+              const adminSnapshot = await db
+                .ref(`platform_admins/${emailKey}`)
+                .once("value");
+              if (adminSnapshot.exists()) {
+                currentUserRole.value = "platform_admin";
+                fetchPlatformData();
+                return;
+              }
+
+              const vendorsSnapshot = await db.ref("vendors").once("value");
+              const userVendorIds = [];
+              let firstVendorId = null;
+
+              vendorsSnapshot.forEach((vendor) => {
+                const vendorId = vendor.key;
+                const users = vendor.val().users;
+
+                if (users && users[emailKey]) {
+                  userVendorIds.push(vendorId);
+                  if (!firstVendorId) {
+                    firstVendorId = vendorId;
+                  }
+                }
+              });
+
+              if (userVendorIds.length > 0) {
+                currentUserRole.value = "vendor_user";
+
+                currentUserVendors.value = userVendorIds;
+                fetchPlatformData();
+
+                let preferredVendorId = firstVendorId;
+                if (
+                  initialVendorId &&
+                  userVendorIds.includes(initialVendorId)
+                ) {
+                  preferredVendorId = initialVendorId;
+                }
+
+                setActiveVendor(preferredVendorId);
+                return;
+              }
+
+              auth.signOut();
+              errorMsg.value = "عذراً، ليس لديك صلاحية وصول إلى أي لوحة تحكم.";
+            };
+
+            const login = async () => {
+              loading.value = true;
+              errorMsg.value = "";
+              try {
+                const userCredential = await auth.signInWithEmailAndPassword(
+                  authForm.value.email,
+                  authForm.value.password
+                );
+                determineUserRole(userCredential.user);
+              } catch (e) {
+                errorMsg.value = "بيانات الدخول غير صحيحة!";
+                loading.value = false;
+              }
+            };
+
+            const logout = () => {
+              auth.signOut();
+              activeVendorId.value = null; // للتأكد من مسح حالة المتجر
+            };
+
+            const navigateTo = (view) => {
+              currentView.value = view;
+            };
+            const toggleMenu = (name) => {
+              menus.value[name] = !menus.value[name];
+            };
+            const isMenuOpen = (name) => menus.value[name];
+
+            // ====================================
+            // 🎯 وظائف إدارة المتجر (Products & Orders)
+            // ====================================
+
+            const saveSettings = () => {
+              if (dbPath.value) {
+                db.ref(`${dbPath.value}/store_info`)
+                  .set(settings.value)
+                  .then(() => {
+                    alert("تم حفظ إعدادات المتجر بنجاح.");
+                  })
+                  .catch((e) => {
+                    alert("فشل الحفظ: " + e.message);
+                  });
+              }
+            };
+
+            const editProduct = (key, product) => {
+              // إعداد بيانات المنتج للتعديل
+              editingProduct.value = {
+                key: key,
+                name: product.name || '',
+                price: parseFloat(product.price || 0),
+                oldPrice: parseFloat(product.oldPrice || 0),
+                image: product.image || '',
+              };
+              showAddProductModal.value = true;
+            };
+
+            const addProduct = () => {
+              if (!dbPath.value) return alert("الرجاء اختيار متجر أولاً.");
+              
+              // تحديد البيانات المراد حفظها (جديد أو تعديل)
+              let dataToSave = editingProduct.value ? { ...editingProduct.value } : { ...newProduct.value };
+              
+              if (!dataToSave.name || !dataToSave.price)
+                return alert("الرجاء إدخال اسم المنتج وسعره.");
+
+              const { key, ...cleanData } = dataToSave; // إزالة المفتاح قبل الإرسال (في حالة التعديل)
+
+              if (editingProduct.value) {
+                // 1. تعديل منتج موجود
+                db.ref(`${dbPath.value}/products/${key}`)
+                  .set(cleanData) // استخدام set لتحديث المنتج بالكامل
+                  .then(() => {
+                    alert("تم حفظ تعديلات المنتج بنجاح.");
+                    showAddProductModal.value = false;
+                    editingProduct.value = null;
+                  })
+                  .catch((e) => {
+                    alert("فشل حفظ التعديلات: " + e.message);
+                  });
+              } else {
+                // 2. إضافة منتج جديد
+                db.ref(`${dbPath.value}/products`)
+                  .push(cleanData) // استخدام push لإضافة منتج جديد بمفتاح تلقائي
+                  .then(() => {
+                    alert("تم إضافة المنتج بنجاح.");
+                    newProduct.value = {};
+                    showAddProductModal.value = false;
+                  });
+              }
+            };
+
+            const deleteProduct = (key) => {
+              if (dbPath.value && confirm("هل أنت متأكد من حذف هذا المنتج نهائياً؟")) {
+                db.ref(`${dbPath.value}/products/${key}`)
+                  .remove()
+                  .then(() => {
+                    alert("تم حذف المنتج بنجاح.");
+                  })
+                  .catch((e) => {
+                    alert("فشل الحذف: " + e.message);
+                  });
+              }
+            };
+
+            const updateOrderStatus = (orderId, newStatus) => {
+              if (dbPath.value && confirm(`هل تريد فعلاً تغيير حالة الطلب ${orderId.slice(0, 8)} إلى ${statusMap[newStatus]}؟`)) {
+                // 💡 ملاحظة: في تطبيق إنتاجي، يجب أن يتم هذا الإجراء عبر Cloud Functions لضمان الأمان!
+                db.ref(`${dbPath.value}/orders/${orderId}`)
+                  .update({ 
+                    status: newStatus,
+                    updatedAt: firebase.database.ServerValue.TIMESTAMP 
+                  })
+                  .then(() => {
+                    alert(`تم تحديث حالة الطلب إلى ${statusMap[newStatus]}.`);
+                  })
+                  .catch((e) => {
+                    alert("فشل التحديث: " + e.message);
+                  });
+              }
+            };
+
+
+            // ====================================
+            // 🏁 وظائف دورة حياة التطبيق
+            // ====================================
+
+            onMounted(() => {
+              auth.onAuthStateChanged((user) => {
+                currentUser.value = user;
+                loading.value = false;
+                if (user) determineUserRole(user);
+                else {
+                  currentUserRole.value = null;
+                  activeVendorId.value = null;
+                }
+              });
+            });
+
+            return {
+              currentUser,
+              authForm,
+              login,
+              logout,
+              loading,
+              errorMsg,
+              currentUserRole,
+              isPlatformAdmin,
+              activeVendorId,
+              allVendors,
+              currentUserVendors,
+              setActiveVendor,
+              dbPath,
+              currentView,
+              menus,
+              showAddProductModal,
+              settings,
+              products,
+              orders,
+              newProduct,
+              editingProduct,
+              totalRevenue,
+              pendingCount,
+              navigateTo,
+              toggleMenu,
+              isMenuOpen,
+              editProduct,
+              addProduct,
+              deleteProduct,
+              saveSettings,
+              viewTitle,
+              sortedOrders, // تم إضافته
+              statusMap, // تم إضافته
+              formatDate, // تم إضافته
+              updateOrderStatus // تم إضافته
+            };
+          },
+        }).mount("#app");
+      } else {
+        document.body.innerHTML = `
+            <div style="background: #1e293b; color: white; padding: 20px; text-align: center; margin-top: 50px; border-radius: 10px;">
+                <h1>خطأ في التحميل! 🚨</h1>
+                <p>تعذر تحميل المكتبات الأساسية (Vue أو Firebase). يرجى التأكد من اتصالك بالإنترنت.</p>
+            </div>
+        `;
+      }
+    </script>
+  </body>
+</html>

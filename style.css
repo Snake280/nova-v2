@@ -1,0 +1,67 @@
+body {
+    font-family: 'Cairo', sans-serif;
+    background: #0b1e33;
+    color: white;
+    margin: 0;
+}
+
+.navbar {
+    background: #0e2a47;
+    padding: 15px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo { font-size: 26px; font-weight: bold; }
+
+.btn-main {
+    background: #1e90ff;
+    border: none;
+    padding: 10px 20px;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.btn-secondary {
+    background: transparent;
+    border: 1px solid #1e90ff;
+    padding: 10px 20px;
+    color: #1e90ff;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.hero {
+    text-align: center;
+    padding: 100px 0;
+}
+
+.auth-container {
+    width: 350px;
+    margin: 80px auto;
+    background: #102541;
+    padding: 25px;
+    border-radius: 12px;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 6px;
+    border: none;
+}
+
+.error-box {
+    color: #ff6b6b;
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.store-box {
+    text-align: center;
+    padding: 80px 0;
+}

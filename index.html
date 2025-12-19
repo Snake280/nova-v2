@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ar" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova Store</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'Cairo', 'sans-serif'] },
+                    colors: { brand: { 500: '#FF4500', 600: '#e03e00' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        [v-cloak] { display: none; }
+        /* Animation for Modal */
+        .pop-enter-active, .pop-leave-active { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .pop-enter-from, .pop-leave-to { opacity: 0; transform: scale(0.9); }
+    </style>
+</head>
+<body class="bg-white text-gray-800 font-sans antialiased">
+
+    <div id="app" v-cloak>
+        
+        <div class="bg-black text-white text-center py-3 text-xs font-bold tracking-widest uppercase">
+            {{ settings.topBarText || 'Exclusive offer - 70% off, cash on delivery' }}
+        </div>
+
+        <header class="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm">
+            <div class="container mx-auto px-6 h-20 flex justify-between items-center">
+                <a href="#" class="text-3xl font-black tracking-tighter text-black">
+                    {{ settings.logoName || 'nova' }}<span class="text-brand-500">.</span>
+                </a>
+                <nav class="hidden md:flex space-x-8">
+                    <a href="#" class="text-sm font-medium text-gray-600 hover:text-black transition">Home</a>
+                    <a href="#" class="text-sm font-medium text-gray-600 hover:text-black transition flex items-center">Collections <i class="fa-solid fa-chevron-down text-[10px] ml-1"></i></a>
+                    <a href="#" class="text-sm font-medium text-gray-600 hover:text-black transition">Contact</a>
+                </nav>
+                <div class="flex items-center space-x-5 text-gray-700">
+                    <div class="flex items-center space-x-3 cursor-pointer hover:text-black transition" @click="isCartOpen = true">
+                        <div class="relative">
+                            <i class="fa-solid fa-cart-shopping text-lg"></i>
+                            <span v-if="cart.length > 0" class="absolute -top-2 -right-2 bg-black text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center">{{ cart.length }}</span>
+                        </div>
+                        <span class="text-sm font-bold hidden lg:block">{{ cartTotal }} EGP</span>
+                    </div>
+                    <div class="relative ml-2">
+                        <button v-if="!currentUser" @click="showAuthModal = true" class="text-sm font-bold border border-gray-300 px-3 py-1 rounded hover:bg-black hover:text-white transition">Login</button>
+                        <button v-else @click="toggleProfileMenu" class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm font-bold">{{ currentUser.email[0].toUpperCase() }}</button>
+                        <div v-if="showProfileMenu" class="absolute right-0 mt-3 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
+                            <a href="#" @click.prevent="viewOrders" class="block px-4 py-2 text-sm hover:bg-gray-50">My Orders</a>
+                            <a href="#" @click.prevent="logout" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-50">Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div v-if="!showOrderHistory">
+            <section class="relative bg-[#CFCFCF] overflow-hidden h-[500px] md:h-[600px] flex items-center">
+                <div class="container mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-2 items-center">
+                    <div class="z-10 text-center md:text-left pt-10 md:pt-0">
+                        <h1 class="text-6xl md:text-8xl font-thin text-white leading-none mb-2 drop-shadow-md">{{ settings.heroTitle1 || 'Unleash' }}</h1>
+                        <h1 class="text-6xl md:text-8xl font-black text-black leading-none mb-6">{{ settings.heroTitle2 || 'the Beat' }}</h1>
+                        <button @click="scrollToProducts" class="bg-black text-white px-8 py-3 rounded-full font-bold hover:bg-brand-600 transition transform hover:scale-105 shadow-lg">Shop Now</button>
+                    </div>
+                    <div class="relative h-full flex items-center justify-center">
+                        <img :src="settings.heroImage" class="relative w-[80%] max-w-md md:max-w-lg drop-shadow-2xl transform hover:rotate-3 transition duration-700 object-contain z-10">
+                    </div>
+                </div>
+            </section>
+
+            <section id="products" class="py-20 bg-white">
+                <div class="container mx-auto px-6">
+                    <div class="text-center mb-16">
+                        <h2 class="text-4xl font-black text-black mb-2">Super Deals</h2>
+                        <div class="h-1 w-20 bg-brand-500 mx-auto"></div>
+                    </div>
+                    <div v-if="loading" class="text-center py-20"><i class="fa-solid fa-circle-notch fa-spin text-4xl text-gray-300"></i></div>
+                    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                        <div v-for="(product, key) in products" :key="key" class="group">
+                            <div class="relative bg-[#F5F5F5] rounded-2xl h-72 flex items-center justify-center mb-4 overflow-hidden cursor-pointer">
+                                <img :src="product.image" class="w-3/4 h-3/4 object-contain group-hover:scale-110 transition duration-500 mix-blend-multiply">
+                                <span v-if="product.oldPrice" class="absolute top-3 left-3 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded">-Sale</span>
+                                <button @click="addToCart(product)" class="absolute bottom-4 right-4 bg-white text-black w-10 h-10 rounded-full flex items-center justify-center shadow-lg translate-y-16 group-hover:translate-y-0 transition duration-300 hover:bg-black hover:text-white"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg text-gray-900 mb-1">{{ product.name }}</h3>
+                                <div class="flex items-center space-x-2">
+                                    <span class="font-black text-xl">{{ product.price }} EGP</span>
+                                    <span v-if="product.oldPrice" class="text-sm text-gray-400 line-through">{{ product.oldPrice }} EGP</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div v-else class="container mx-auto px-6 py-12 min-h-[60vh]">
+            <div class="flex items-center justify-between mb-8 border-b pb-4">
+                <h2 class="text-3xl font-black">My Orders</h2>
+                <button @click="showOrderHistory = false" class="text-sm font-bold underline">Back to Shop</button>
+            </div>
+            <div v-if="myOrders.length === 0" class="text-center py-20 text-gray-500">No orders found.</div>
+            <div v-else class="space-y-4">
+                <div v-for="order in myOrders" :key="order.id" class="border border-gray-200 p-4 rounded-lg flex justify-between items-center bg-white shadow-sm">
+                    <div>
+                        <p class="font-bold">Order #{{ order.id.slice(-5) }}</p>
+                        <p class="text-xs text-gray-500">{{ new Date(order.timestamp).toLocaleDateString() }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-black">{{ order.total }} EGP</p>
+                        <span class="text-xs font-bold uppercase px-2 py-1 rounded bg-yellow-100 text-yellow-800">{{ order.status || 'Pending' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="bg-black text-white py-16">
+            <div class="container mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-10 text-sm">
+                <div class="md:col-span-2">
+                    <h3 class="text-2xl font-black mb-4">{{ settings.logoName || 'nova' }}<span class="text-brand-500">.</span></h3>
+                    <p class="text-gray-400 max-w-xs leading-relaxed">{{ settings.footerAbout || 'The best place to buy smart gadgets in Egypt.' }}</p>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-4 text-lg">Contact</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><i class="fa-solid fa-phone mr-2"></i> {{ settings.phone }}</li>
+                        <li><i class="fa-solid fa-envelope mr-2"></i> {{ settings.email }}</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="container mx-auto px-6 mt-12 pt-8 border-t border-gray-800 text-center text-gray-500 text-xs relative">
+                Copyright © 2025 {{ settings.logoName }}. All Rights Reserved.
+            </div>
+        </footer>
+
+        <transition name="pop">
+            <div v-if="notification.show" @click.self="notification.show = false" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/10 backdrop-blur-[2px] p-4 cursor-pointer">
+                <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-8 text-center relative transform transition-all scale-100 border border-gray-100 cursor-default">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm"
+                         :class="notification.type === 'error' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'">
+                        <i :class="notification.type === 'error' ? 'fa-solid fa-xmark text-3xl' : 'fa-solid fa-check text-3xl'"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-gray-900 mb-2">{{ notification.title }}</h3>
+                    <p class="text-gray-500 text-sm font-medium mb-6 leading-relaxed">{{ notification.message }}</p>
+                    <button @click="notification.show = false" class="w-full py-3 rounded-xl font-bold text-white shadow-md transition-transform transform hover:-translate-y-1 active:scale-95"
+                            :class="notification.type === 'error' ? 'bg-red-500 hover:bg-red-600' : 'bg-black hover:bg-brand-600'">
+                        {{ notification.btnText || 'Got it' }}
+                    </button>
+                </div>
+            </div>
+        </transition>
+
+        <transition name="pop">
+            <div v-if="showAuthModal" @click.self="showAuthModal = false" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-[2px] p-4 cursor-pointer">
+                <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-8 relative cursor-default">
+                    <button @click="showAuthModal = false" class="absolute top-5 right-5 w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-black transition"><i class="fa-solid fa-times"></i></button>
+                    <h2 class="text-2xl font-black text-center mb-6">{{ authMode === 'login' ? 'Welcome Back' : 'Join Us' }}</h2>
+                    <form @submit.prevent="handleAuth" class="space-y-4">
+                        <input v-if="authMode !== 'reset'" v-model="authForm.email" type="email" placeholder="Email" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" required>
+                        <input v-if="authMode !== 'reset'" v-model="authForm.password" type="password" placeholder="Password (Min 6 chars)" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" required>
+                        <input v-if="authMode === 'reset'" v-model="authForm.email" type="email" placeholder="Enter your email" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" required>
+                        <div v-if="authMode === 'login'" class="text-right">
+                            <a href="#" @click.prevent="authMode = 'reset'" class="text-xs font-bold text-brand-600 hover:underline">Forgot Password?</a>
+                        </div>
+                        <button type="submit" class="w-full bg-black text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-brand-600 transition-all transform hover:-translate-y-0.5 active:scale-95 flex justify-center items-center">
+                            <span v-if="!loading">{{ authMode === 'login' ? 'Login' : (authMode === 'reset' ? 'Send Link' : 'Register') }}</span>
+                            <i v-else class="fa-solid fa-circle-notch fa-spin"></i>
+                        </button>
+                    </form>
+                    <div class="mt-6 text-center text-sm text-gray-500 border-t border-gray-100 pt-6">
+                        <button @click="authMode = authMode === 'login' ? 'register' : 'login'" class="text-brand-600 font-bold hover:underline">
+                            {{ authMode === 'login' ? 'Create an account' : 'Back to Login' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <div v-if="isCartOpen" class="fixed inset-0 z-[60] flex justify-end">
+            <div @click="isCartOpen = false" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+            <div class="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col">
+                <div class="p-5 border-b flex justify-between items-center bg-gray-50">
+                    <h2 class="font-black text-xl">Your Cart ({{ cart.length }})</h2>
+                    <button @click="isCartOpen = false" class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition">&times;</button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-5 space-y-4">
+                    <div v-if="cart.length === 0" class="text-center py-10 text-gray-400">Cart is empty</div>
+                    <div v-for="(item, index) in cart" :key="index" class="flex gap-4 items-center border-b pb-4">
+                        <img :src="item.image" class="w-16 h-16 object-contain bg-gray-100 rounded-md p-1">
+                        <div class="flex-1">
+                            <h4 class="font-bold text-sm line-clamp-1">{{ item.name }}</h4>
+                            <p class="text-brand-500 font-bold">{{ item.price }} EGP</p>
+                        </div>
+                        <button @click="removeFromCart(index)" class="text-gray-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                </div>
+                <div v-if="cart.length > 0" class="p-5 bg-gray-50 border-t">
+                    <div class="flex justify-between font-black text-lg mb-4"><span>Total</span><span>{{ cartTotal }} EGP</span></div>
+                    <div class="space-y-3">
+                        <input v-model="checkoutForm.name" placeholder="Full Name" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:ring-2 focus:ring-brand-500/20">
+                        <input v-model="checkoutForm.phone" placeholder="Phone Number" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:ring-2 focus:ring-brand-500/20">
+                        <input v-model="checkoutForm.address" placeholder="Full Address" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:bg-white focus:ring-2 focus:ring-brand-500/20">
+                        <button @click="placeOrder" class="w-full bg-black text-white py-4 rounded-xl font-bold hover:bg-brand-600 transition shadow-lg">Confirm Order (COD)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ⚠️⚠️⚠️ Firebase Config Here ⚠️⚠️⚠️
+        const firebaseConfig = {
+            apiKey: "AIzaSyDJYkvgiPfj1tSdy14n6iKlQaTFpc8Z9qk",
+            authDomain: "nova-eg.firebaseapp.com",
+            databaseURL: "https://nova-eg-default-rtdb.firebaseio.com",
+            projectId: "nova-eg",
+            storageBucket: "nova-eg.firebasestorage.app",
+            messagingSenderId: "157391997710",
+            appId: "1:157391997710:web:a4cbe2361e649eea92655f",
+            measurementId: "G-MJNL15WJBX"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        const { createApp, ref, onMounted, computed } = Vue;
+
+        createApp({
+            setup() {
+                const settings = ref({});
+                const products = ref({});
+                const cart = ref([]);
+                const loading = ref(true);
+                const isCartOpen = ref(false);
+                const showAuthModal = ref(false);
+                
+                // تم إزالة متغيرات المشرفين (مثل adminPin, isAdminUser)
+                
+                const authMode = ref('login');
+                const authForm = ref({ email: '', password: '' });
+                const currentUser = ref(null);
+                
+                const showProfileMenu = ref(false);
+                const showOrderHistory = ref(false);
+                const myOrders = ref([]);
+                const checkoutForm = ref({ name: '', phone: '', address: '' });
+                const notification = ref({ show: false, title: '', message: '', type: 'success', btnText: '' });
+
+                const showNotify = (title, message, type = 'success', btnText = 'Okay') => {
+                    notification.value = { show: true, title, message, type, btnText };
+                };
+
+                const scrollY = ref(0);
+                window.addEventListener('scroll', () => { scrollY.value = window.scrollY; });
+
+                onMounted(() => {
+                    db.ref('settings').on('value', s => { if(s.exists()) settings.value = s.val(); });
+                    db.ref('products').on('value', s => { if(s.exists()) products.value = s.val(); loading.value = false; });
+                    
+                    auth.onAuthStateChanged(user => {
+                        currentUser.value = user;
+                        if(user) {
+                            checkoutForm.value.name = user.displayName || '';
+                            fetchOrders(user.uid);
+                            // تم إزالة دالة checkIfAdmin
+                        } 
+                        // تم إزالة منطق else لتنظيف الكود
+                    });
+                });
+
+                // تم إزالة الدوال checkAdminAccess و verifyAdminPin و checkIfAdmin بالكامل
+
+                const fetchOrders = (uid) => {
+                    db.ref('orders').on('value', s => {
+                        if(s.exists()) {
+                            const all = s.val();
+                            myOrders.value = Object.keys(all).map(k => ({...all[k], id: k})).filter(o => o.userId === uid).reverse();
+                        }
+                    });
+                };
+
+                const handleAuth = async () => {
+                    loading.value = true;
+                    if (authForm.value.password && authForm.value.password.length < 6 && authMode.value !== 'reset') {
+                        showNotify("Weak Password", "Password must be at least 6 characters long.", "error", "Try Again");
+                        loading.value = false; return;
+                    }
+                    try {
+                        if(authMode.value === 'register') {
+                            await auth.createUserWithEmailAndPassword(authForm.value.email, authForm.value.password);
+                            showAuthModal.value = false;
+                            showNotify("Welcome Aboard! 🎉", "Your account has been created successfully.", "success", "Let's Shop");
+                        } else if(authMode.value === 'login') {
+                            await auth.signInWithEmailAndPassword(authForm.value.email, authForm.value.password);
+                            showAuthModal.value = false;
+                        } else if(authMode.value === 'reset') {
+                            await auth.sendPasswordResetEmail(authForm.value.email);
+                            showNotify("Email Sent 📧", "Check your inbox for the password reset link.", "success");
+                        }
+                    } catch(e) {
+                        let msg = e.message.replace('Firebase:', '').replace(/\(auth\/.*\)\./, '').trim();
+                        showNotify("Authentication Error", msg, "error");
+                    } finally { loading.value = false; }
+                };
+
+                const logout = () => { auth.signOut(); showProfileMenu.value = false; showOrderHistory.value = false; };
+                const toggleProfileMenu = () => { showProfileMenu.value = !showProfileMenu.value; };
+                const viewOrders = () => { showOrderHistory.value = true; showProfileMenu.value = false; };
+                const addToCart = (p) => { cart.value.push(p); isCartOpen.value = true; };
+                const removeFromCart = (i) => cart.value.splice(i, 1);
+                const cartTotal = computed(() => cart.value.reduce((t, i) => t + Number(i.price), 0));
+                const scrollToProducts = () => document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+
+                const placeOrder = () => {
+                    if (!checkoutForm.value.name || !checkoutForm.value.phone) {
+                        showNotify("Missing Details", "Please enter your name and phone number to continue.", "error");
+                        return;
+                    }
+                    const order = {
+                        customerName: checkoutForm.value.name,
+                        customerPhone: checkoutForm.value.phone,
+                        customerAddress: checkoutForm.value.address,
+                        items: cart.value,
+                        total: cartTotal.value,
+                        timestamp: Date.now(),
+                        status: 'pending',
+                        userId: currentUser.value ? currentUser.value.uid : 'guest'
+                    };
+                    db.ref('orders').push(order).then(() => {
+                        showNotify("Order Confirmed! 🚀", "We have received your order and will contact you soon.", "success");
+                        cart.value = []; isCartOpen.value = false;
+                        if(currentUser.value) showOrderHistory.value = true;
+                    });
+                };
+
+                const getStatusClass = (status) => {
+                    const map = { 'pending': 'bg-yellow-100 text-yellow-800', 'delivered': 'bg-green-100 text-green-800' };
+                    return map[status || 'pending'] || 'bg-gray-100';
+                };
+
+                return {
+                    settings, products, cart, isCartOpen, showAuthModal, authMode, authForm, currentUser,
+                    showProfileMenu, showOrderHistory, myOrders, loading, checkoutForm, scrollY, notification,
+                    // تم إزالة showAdminPasswordModal, adminPin, isAdminUser,
+                    handleAuth, logout, toggleProfileMenu, viewOrders, addToCart, removeFromCart, cartTotal,
+                    placeOrder, scrollToProducts, getStatusClass 
+                    // تم إزالة checkAdminAccess, verifyAdminPin
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nova Store - أنشئ متجرك الإلكتروني</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: { sans: ['Inter', 'Cairo', 'sans-serif'] },
+                // ألوان خلفية داكنة وزر رئيسي أزرق
+                colors: { brand: { 500: '#3b82f6', 600: '#2563eb', 700: '#1e40af' } } 
+            }
+        }
+    }
+</script>
+<style>
+/* خلفية داكنة لصفحة الهبوط */
+body { background-color: #0f172a; color: #f1f5f9; } 
+a { transition: all 0.3s ease; }
+a:hover { transform: translateY(-2px); color: #60a5fa; }
+[v-cloak] { display: none; }
+
+/* تأثير الانتقال للـ Modal */
+.pop-enter-active, .pop-leave-active { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.pop-enter-from, .pop-leave-to { opacity: 0; transform: scale(0.9); }
+
+/* تأثير الإشعارات (Toast) */
+.toast-enter-active, .toast-leave-active { transition: all 0.4s ease; }
+.toast-enter-from { opacity: 0; transform: translateY(-20px); }
+.toast-leave-to { opacity: 0; transform: translateY(-20px); }
+</style>
+</head>
+<body>
+
+<div id="app" v-cloak class="min-h-screen flex flex-col">
+
+<header class="sticky top-0 bg-[#1e293b] shadow-lg z-50">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+        
+        <a href="#home" class="flex items-center">
+            <img src="./images/n-logo.png" alt="Nova Logo" class="h-10 w-auto object-contain"> 
+        </a>
+        
+        <nav class="space-x-6 flex items-center">
+            <a href="#home" class="text-sm font-semibold hover:text-brand-500">الرئيسية</a>
+            <a href="#prices" class="text-sm font-semibold hover:text-brand-500">الأسعار</a>
+            <a href="#contact" class="text-sm font-semibold hover:text-brand-500">تواصل معنا</a>
+            <a href="#terms" class="text-sm font-semibold hover:text-brand-500">الشروط</a>
+        </nav>
+        
+        <div>
+            <button v-if="!currentUser" @click="showAuthModal = true; authMode = 'login'" 
+                    class="px-4 py-1 border border-brand-500 text-brand-500 rounded hover:bg-brand-500 hover:text-white transition">
+                تسجيل الدخول
+            </button>
+            <div v-else class="flex items-center space-x-4 space-x-reverse">
+                <span class="font-bold text-sm hidden md:block">{{ currentUser.displayName || currentUser.email }}</span>
+                <button @click="logout" class="px-3 py-1 bg-red-600 rounded text-white hover:bg-red-700 transition">
+                    <i class="fa-solid fa-right-from-bracket"></i> خروج
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
+
+<section id="home" class="flex-1 flex items-center justify-center text-center py-20">
+    <div>
+        <h1 class="text-5xl md:text-6xl font-black mb-4">انطلق نحو التجارة الإلكترونية</h1>
+        <p class="mb-6 text-gray-400 max-w-xl mx-auto">
+            منصة Nova Store تمنحك أدوات Shopify الاحترافية، مصممة خصيصًا لنجاحك في السوق المحلي.
+        </p>
+        
+        <button v-if="currentUser"
+                @click="showNotify('خطوتك الأولى!', 'سيتم تحويلك إلى لوحة تحكم متجرك الجديد.')"
+                class="px-8 py-3 rounded-full bg-brand-500 hover:bg-brand-600 transition transform hover:-translate-y-1 font-black shadow-lg shadow-brand-500/30">
+            اذهب إلى متجري <i class="fa-solid fa-arrow-left ml-2"></i>
+        </button>
+
+        <button v-else @click="showAuthModal = true; authMode = 'register'"
+                class="px-8 py-3 rounded-full bg-brand-500 hover:bg-brand-600 transition transform hover:-translate-y-1 font-black shadow-lg shadow-brand-500/30">
+            ابدأ تجربتك المجانية
+        </button>
+    </div>
+</section>
+
+<section id="prices" class="py-20 container mx-auto px-6 text-center">
+    <h2 class="text-3xl font-black mb-6">الأسعار والخطط</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-right">
+        
+        <div class="p-8 bg-[#1e293b] rounded-xl border-2 border-brand-500/20 shadow-xl">
+            <h3 class="text-xl font-black mb-2 text-brand-500">الخطة الأساسية</h3>
+            <p class="text-3xl font-bold mb-6">99 <span class="text-sm text-gray-400">EGP/شهر</span></p>
+            <ul class="space-y-3 text-gray-300 text-sm">
+                <li><i class="fa-solid fa-check ml-2 text-green-400"></i> متجر واحد</li>
+                <li><i class="fa-solid fa-check ml-2 text-green-400"></i> 100 منتج كحد أقصى</li>
+                <li><i class="fa-solid fa-check ml-2 text-green-400"></i> دعم فني أساسي</li>
+                <li class="line-through text-gray-600"><i class="fa-solid fa-xmark ml-2 text-red-500"></i> تحليلات متقدمة</li>
+            </ul>
+        </div>
+        
+        <div class="p-8 bg-[#1e293b] rounded-xl border-2 border-brand-500 shadow-2xl relative transform scale-105">
+            <span class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-brand-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">الأكثر شعبية</span>
+            <h3 class="text-xl font-black mb-2 text-brand-500">الخطة الاحترافية</h3>
+            <p class="text-3xl font-bold mb-6">299 <span class="text-sm text-gray-400">EGP/شهر</span></p>
+            <ul class="space-y-3 text-gray-300 text-sm">
+                <li><i class="fa-solid fa-check ml-2 text-green-400"></i> عدد منتجات غير محدود</li>
+                <li><i class="fa-solid fa-check ml-2 text-green-400"></i> نطاق خاص مجاني (Domain)</li>
+                <li><i class="fa-solid fa-check ml-2 text-green-400"></i> تحليلات متقدمة</li>
+                <li><i class="fa-solid fa-check ml-2 text-green-400"></i> دعم فني على مدار الساعة</li>
+            </ul>
+        </div>
+        
+        <div class="p-8 bg-[#1e293b] rounded-xl border-2 border-brand-500/20 shadow-xl">
+            <h3 class="text-xl font-black mb-2 text-brand-500">الشركات الكبرى</h3>
+            <p class="text-3xl font-bold mb-6">اتصل بنا</p>
+            <ul class="space-y-3 text-gray-300 text-sm">
+                <li><i class="fa-solid fa-check ml-2 text-green-400"></i> متاجر متعددة (Multi-Vendor)</li>
+                <li><i class="fa-solid fa-check ml-2 text-green-400"></i> تكامل API كامل</li>
+                <li><i class="fa-solid fa-check ml-2 text-green-400"></i> خوادم مخصصة</li>
+                <li><i class="fa-solid fa-check ml-2 text-green-400"></i> مدير حساب شخصي</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section id="contact" class="py-20 container mx-auto px-6 text-center">
+    <h2 class="text-3xl font-black mb-6">تواصل معنا</h2>
+    <p class="text-gray-400">للاستفسارات، يمكنك التواصل معنا:</p>
+    <div class="mt-4 text-lg font-bold">
+        <p><i class="fa-solid fa-envelope ml-2 text-brand-500"></i> info@nova.com</p>
+        <p><i class="fa-solid fa-phone ml-2 text-brand-500"></i> +20 123 456 789</p>
+    </div>
+</section>
+
+<section id="terms" class="py-20 container mx-auto px-6 text-center">
+    <h2 class="text-3xl font-black mb-6">الشروط والخصوصية</h2>
+    <p class="text-gray-400 max-w-3xl mx-auto">
+        نحن ملتزمون بحماية بيانات عملائنا. استخدامك لهذا الموقع يعني موافقتك على شروط الخدمة وسياسة الخصوصية الخاصة بنا.
+    </p>
+</section>
+
+<footer class="bg-[#1e293b] text-gray-400 py-8 text-center mt-auto">
+    &copy; 2025 Nova Store. جميع الحقوق محفوظة.
+</footer>
+
+<transition name="pop">
+    <div v-if="showAuthModal" @click.self="showAuthModal = false"
+         class="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 cursor-pointer">
+        <div class="bg-gray-800 w-full max-w-md rounded-3xl shadow-2xl p-8 relative cursor-default text-white border border-gray-700">
+            <button @click="showAuthModal = false"
+                    class="absolute top-5 right-5 w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center hover:bg-red-500 transition">
+                <i class="fa-solid fa-times"></i>
+            </button>
+
+            <h2 class="text-2xl font-black text-center mb-6">
+                {{ authMode==='login' ? 'مرحباً بك' : 'انضم إلينا' }}
+            </h2>
+
+            <form @submit.prevent="handleAuth" class="space-y-4">
+                <input v-model="authForm.email" type="email" placeholder="البريد الإلكتروني" required
+                       class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 outline-none focus:bg-gray-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all duration-200">
+
+                <input v-model="authForm.password" type="password" placeholder="كلمة المرور (6 أحرف على الأقل)" required
+                       class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 outline-none focus:bg-gray-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all duration-200">
+
+                <div v-if="authMode==='register'" class="space-y-4">
+                    <input v-model="authForm.displayName" type="text" placeholder="اسمك الكامل" required
+                           class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 outline-none focus:bg-gray-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all duration-200">
+                    <input v-model="authForm.storeName" type="text" placeholder="اسم متجرك (سيكون شعارك)" required
+                           class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 outline-none focus:bg-gray-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all duration-200">
+                    <input v-model="authForm.storeActivity" type="text" placeholder="نشاط المتجر (مثل: أجهزة ذكية، ملابس)" required
+                           class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 outline-none focus:bg-gray-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all duration-200">
+                </div>
+
+                <button type="submit"
+                        class="w-full bg-brand-500 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-brand-600 transition transform hover:-translate-y-0.5 active:scale-95 duration-200">
+                    <span v-if="!loading">{{ authMode==='login' ? 'تسجيل الدخول' : 'إنشاء حساب المتجر' }}</span>
+                    <i v-else class="fa-solid fa-circle-notch fa-spin"></i>
+                </button>
+            </form>
+
+            <div class="mt-6 text-center text-sm text-gray-400 border-t border-gray-700 pt-6">
+                <button @click="authMode = authMode === 'login' ? 'register' : 'login'"
+                        class="text-brand-500 font-bold hover:underline transition duration-200">
+                    {{ authMode === 'login' ? 'إنشاء حساب جديد' : 'العودة لتسجيل الدخول' }}
+                </button>
+            </div>
+        </div>
+    </div>
+</transition>
+
+
+<transition name="toast">
+<div v-if="notification.show" 
+     :class="['fixed top-6 right-6 text-white px-6 py-4 rounded-lg shadow-lg z-50', notification.type === 'error' ? 'bg-red-600' : 'bg-brand-500']">
+    <p class="font-bold">{{ notification.title }}</p>
+    <p class="text-sm">{{ notification.message }}</p>
+</div>
+</transition>
+
+</div>
+
+<script>
+// ⚠️ يجب استخدام مفاتيح Firebase الخاصة بك ⚠️
+const firebaseConfig = {
+    apiKey: "AIzaSyAUxHWPtXVUOsmvMWxSN4wyCmGTpSzVFik",
+    authDomain: "nova-b91d4.firebaseapp.com",
+    databaseURL: "https://nova-b91d4-default-rtdb.firebaseio.com", // **يجب أن يكون هذا صحيحاً**
+    projectId: "nova-b91d4",
+    storageBucket: "nova-b91d4.appspot.com",
+    messagingSenderId: "993960824562",
+    appId: "1:993960824562:web:a23cc53cab7adbe2c44a6b"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database(); // تعريف قاعدة البيانات
+
+const { createApp, ref } = Vue;
+
+createApp({
+setup() {
+    const showAuthModal = ref(false);
+    const authMode = ref('login');
+    const authForm = ref({ email: '', password: '', displayName: '', storeName: '', storeActivity: '' });
+    const currentUser = ref(null);
+    const loading = ref(false);
+    const notification = ref({ show: false, title: '', message: '', type: 'success' });
+
+    const showNotify = (title, message, type = 'success') => {
+        notification.value = { show: true, title, message, type };
+        setTimeout(() => notification.value.show = false, 3000);
+    };
+
+    auth.onAuthStateChanged(user => { currentUser.value = user; });
+
+    const handleAuth = async () => {
+        loading.value = true;
+        try {
+            if(authMode.value === 'register') {
+                
+                // 1. إنشاء حساب Firebase
+                const userCredential = await auth.createUserWithEmailAndPassword(authForm.value.email, authForm.value.password);
+                const uid = userCredential.user.uid;
+                const emailKey = authForm.value.email.replace(/\./g, ','); // لتحويل الإيميل إلى مفتاح في Firebase
+                
+                // 2. تحديث الاسم في ملف تعريف المستخدم
+                await userCredential.user.updateProfile({ displayName: authForm.value.displayName });
+                
+                // 3. إنشاء متجر جديد في مسار /vendors
+                const vendorId = `VND_${uid.slice(0, 10)}`; // ID فريد للمتجر
+                
+                // البيانات الأساسية للمتجر (لوحة تحكم Admin ستسحبها من هنا)
+                const storeData = {
+                    store_info: {
+                        logoName: authForm.value.storeName,
+                        activity: authForm.value.storeActivity,
+                        ownerEmail: authForm.value.email,
+                        createdAt: Date.now()
+                    },
+                    users: {
+                        [emailKey]: { 
+                            role: 'owner', // أول مستخدم هو مالك المتجر
+                            displayName: authForm.value.displayName
+                        }
+                    },
+                    products: { 'demo_product': { name: 'منتج تجريبي', price: 100 } }, // منتج تجريبي للبدء
+                    orders: {} // سجل الطلبات فارغ
+                };
+
+                await db.ref(`vendors/${vendorId}`).set(storeData);
+
+                currentUser.value = userCredential.user;
+                showNotify("تم إنشاء متجرك بنجاح! 🎉", `مرحباً بك، ${authForm.value.displayName}.`);
+                showAuthModal.value = false;
+                
+            } else { // login
+                const userCredential = await auth.signInWithEmailAndPassword(authForm.value.email, authForm.value.password);
+                currentUser.value = userCredential.user;
+                showNotify("تم تسجيل الدخول", `مرحباً بك، ${userCredential.user.displayName || "المستخدم"}.`);
+                showAuthModal.value = false;
+            }
+        } catch(e) {
+            let msg = "حدث خطأ، حاول مرة أخرى.";
+            switch(e.code) {
+                case "auth/wrong-password": msg="كلمة المرور غير صحيحة."; break;
+                case "auth/user-not-found": msg="هذا المستخدم غير موجود."; break;
+                case "auth/invalid-email": msg="البريد الإلكتروني غير صحيح."; break;
+                case "auth/email-already-in-use": msg="البريد الإلكتروني مستخدم مسبقاً."; break;
+                case "auth/weak-password": msg="كلمة المرور ضعيفة، يجب أن تكون 6 أحرف على الأقل."; break;
+            }
+            showNotify("خطأ في المصادقة", msg, 'error');
+        } finally {
+            loading.value = false;
+        }
+    };
+
+
+    const logout = () => auth.signOut();
+
+    return { 
+        showAuthModal, authMode, authForm, currentUser, loading, 
+        handleAuth, logout, notification, showNotify 
+    };
+}
+}).mount('#app');
+</script>
+<script type="module">
+import { getUserUID } from "./auth.js";
+
+const goMyStore = document.getElementById("goMyStore");
+
+if (goMyStore) {
+    goMyStore.onclick = () => {
+        getUserUID(uid => {
+            if (uid) {
+                window.location.href = `store.html?uid=${uid}`;
+            } else {
+                alert("سجّل الدخول أولاً");
+            }
+        });
+    };
+}
+</script>
+
+</body>
+</html>
